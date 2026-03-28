@@ -33,74 +33,64 @@ fun Route.cartRoutes() {
                 ?: return@get call.respondError("Unauthorized.", HttpStatusCode.Unauthorized)
             val cartItems = CartService.getCartItems(UUID.fromString(userId))
             val checkoutDetails = OrderService.getCheckoutDetails(UUID.fromString(userId))
-            call.respond(
-                CartResponse(
-                    items = cartItems,
-                    checkoutDetails = checkoutDetails
-                )
-            )
+            call.respond(CartResponse(items = cartItems, checkoutDetails = checkoutDetails))
         }
 
         /**
-         * Add an item to the cart
+         * Add a keke vehicle to the cart
          */
         post {
-            val uid = call.principal<JWTPrincipal>()?.payload
-            val userId = uid?.getClaim("userId")?.asString()
+            val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                 ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized.")
             val request = call.receive<AddToCartRequest>()
-            val restaurantId = UUID.fromString(
-                request.restaurantId as? String ?: return@post call.respondError(
-                    HttpStatusCode.BadRequest,
-                    "Restaurant ID is required."
+
+            val schoolId = UUID.fromString(
+                request.schoolId as? String ?: return@post call.respondError(
+                    HttpStatusCode.BadRequest, "School ID is required."
                 )
             )
-            val menuItemId = UUID.fromString(
-                request.menuItemId as? String ?: return@post call.respondError(
-                    HttpStatusCode.BadRequest,
-                    "Menu item ID is required."
+            val kekeVehicleId = UUID.fromString(
+                request.kekeVehicleId as? String ?: return@post call.respondError(
+                    HttpStatusCode.BadRequest, "Keke vehicle ID is required."
                 )
             )
             val quantity = (request.quantity as? Int) ?: return@post call.respondError(
-                HttpStatusCode.BadRequest,
-                "Quantity is required."
+                HttpStatusCode.BadRequest, "Quantity is required."
             )
 
-            val cartItemId = CartService.addToCart(UUID.fromString(userId), restaurantId, menuItemId, quantity)
-            call.respond(mapOf("id" to cartItemId.toString(), "message" to "Item added to cart"))
+            val cartItemId = CartService.addToCart(UUID.fromString(userId), schoolId, kekeVehicleId, quantity)
+            call.respond(mapOf("id" to cartItemId.toString(), "message" to "Keke vehicle added to cart"))
         }
 
         /**
-         * Update item quantity in the cart
+         * Update keke vehicle quantity in the cart
          */
         patch {
             val cartItem = call.receive<UpdateCartItemRequest>()
             val quantity = cartItem.quantity
             if (quantity == 0) {
                 call.respondError(HttpStatusCode.BadRequest, "Quantity cannot be zero")
+                return@patch
             }
-
             val success = CartService.updateCartItemQuantity(UUID.fromString(cartItem.cartItemId), quantity)
             if (success) call.respond(mapOf("message" to "Cart item updated successfully"))
             else call.respondError(HttpStatusCode.NotFound, "Cart item not found")
         }
 
         /**
-         * Remove an item from the cart
+         * Remove a keke vehicle from the cart
          */
         delete("/{cartItemId}") {
             val cartItemId = call.parameters["cartItemId"] ?: return@delete call.respondError(
-                HttpStatusCode.BadRequest,
-                "Cart item ID is required."
+                HttpStatusCode.BadRequest, "Cart item ID is required."
             )
-
             val success = CartService.removeCartItem(UUID.fromString(cartItemId))
             if (success) call.respond(mapOf("message" to "Cart item removed successfully"))
             else call.respondError(HttpStatusCode.NotFound, "Cart item not found")
         }
 
         /**
-         * Clear the cart
+         * Clear the entire cart
          */
         delete {
             val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()

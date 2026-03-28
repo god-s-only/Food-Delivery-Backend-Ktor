@@ -11,7 +11,7 @@ data class PlaceOrderRequest(
 data class Order(
     val id: String,
     val userId: String,
-    val restaurantId: String,
+    val schoolId: String,
     val riderId: String?,
     val address: Address?,
     val status: String,
@@ -19,7 +19,7 @@ data class Order(
     val stripePaymentIntentId: String?,
     val totalAmount: Double,
     val items: List<OrderItem>? = null,
-    val restaurant: Restaurant? = null,
+    val school: School? = null,
     val createdAt: String,
     val updatedAt: String
 )
@@ -28,35 +28,73 @@ data class Order(
 data class OrderItem(
     val id: String,
     val orderId: String,
-    val menuItemId: String,
+    val kekeVehicleId: String,
     val quantity: Int,
-    val menuItemName:String?
+    val kekeVehicleName: String?
 )
 
 @Serializable
 data class AddToCartRequest(
-    val restaurantId: String,
-    val menuItemId: String,
+    val schoolId: String,
+    val kekeVehicleId: String,
     val quantity: Int
 )
 
-// Add these order statuses as an enum
 enum class OrderStatus {
-    PENDING_ACCEPTANCE, // Initial state when order is placed
-    ACCEPTED,          // Restaurant accepted the order
-    PREPARING,         // Food is being prepared
-    READY,            // Ready for delivery/pickup
+    PENDING_ACCEPTANCE,
+    ACCEPTED,
+    PREPARING,
+    READY,
     ASSIGNED,
-    OUT_FOR_DELIVERY, // Rider picked up
-    DELIVERED,        // Order completed
-    DELIVERY_FAILED,        // Order completed
-    REJECTED,         // Restaurant rejected the order
-    CANCELLED         // Customer cancelled
+    OUT_FOR_DELIVERY,
+    DELIVERED,
+    DELIVERY_FAILED,
+    REJECTED,
+    CANCELLED
 }
 
-// Add order action request model
 @Serializable
 data class OrderActionRequest(
     val action: String, // "ACCEPT", "REJECT"
     val reason: String? = null
+)
+
+@Serializable
+data class UpdateOrderStatusRequest(
+    val status: String
+)
+
+@Serializable
+data class SchoolStatistics(
+    val totalOrders: Int,
+    val totalRevenue: Double,
+    val averageOrderValue: Double,
+    val popularKekeVehicles: List<PopularItem>,
+    val ordersByStatus: Map<String, Int>,
+    val revenueByDay: List<DailyRevenue>
+)
+
+@Serializable
+data class PopularItem(
+    val id: String,
+    val name: String,
+    val totalOrders: Int,
+    val revenue: Double
+)
+
+@Serializable
+data class DailyRevenue(
+    val date: String,
+    val revenue: Double,
+    val orders: Int
+)
+
+@Serializable
+data class UpdateSchoolRequest(
+    val name: String? = null,
+    val address: String? = null,
+    val imageUrl: String? = null,
+    val categoryId: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

@@ -2,17 +2,15 @@ package com.codewithfk.database
 
 import com.codewithfk.database.migrations.updateOwnerPassword
 import com.codewithfk.model.Category
-import io.ktor.http.*
 import io.ktor.server.application.*
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.javatime.datetime
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.*
 
 object DatabaseFactory {
     fun init() {
         val driverClassName = "com.mysql.cj.jdbc.Driver"
-        val jdbcURL = "jdbc:mysql://localhost:3306/food_delivery"
+        val jdbcURL = "jdbc:mysql://localhost:3306/school_keke"
         val user = "root"
         val password = "root"
 
@@ -21,12 +19,11 @@ object DatabaseFactory {
             Database.connect(jdbcURL, driverClassName, user, password)
 
             transaction {
-                // Create base tables
                 SchemaUtils.createMissingTablesAndColumns(
                     UsersTable,
                     CategoriesTable,
-                    RestaurantsTable,
-                    MenuItemsTable,
+                    SchoolsTable,
+                    KekeVehiclesTable,
                     AddressesTable,
                     OrdersTable,
                     OrderItemsTable,
@@ -40,32 +37,20 @@ object DatabaseFactory {
                 // Check if rider_id column exists
                 val riderIdExists = exec(
                     """
-                                SELECT COUNT(*) 
-                                FROM information_schema.COLUMNS 
-                                WHERE TABLE_SCHEMA = DATABASE()
-                                AND TABLE_NAME = 'orders' 
-                                AND COLUMN_NAME = 'rider_id'
-                            """
+                    SELECT COUNT(*) FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'orders'
+                    AND COLUMN_NAME = 'rider_id'
+                    """
                 ) { it.next(); it.getInt(1) } ?: 0 > 0
 
-                // Add rider_id column if it doesn't exist
                 if (!riderIdExists) {
-                    exec(
-                        """
-                        ALTER TABLE orders 
-                        ADD COLUMN rider_id VARCHAR(36) NULL;
-                    """
-                    )
-
-                    // Add foreign key constraint
-                    exec(
-                        """
+                    exec("ALTER TABLE orders ADD COLUMN rider_id VARCHAR(36) NULL;")
+                    exec("""
                         ALTER TABLE orders
                         ADD CONSTRAINT fk_orders_rider
-                        FOREIGN KEY (rider_id) 
-                        REFERENCES users(id);
-                    """
-                    )
+                        FOREIGN KEY (rider_id) REFERENCES users(id);
+                    """)
                 }
             }
         } catch (e: Exception) {
@@ -81,84 +66,59 @@ fun Application.migrateDatabase() {
             // Migration 1: Add FCM token to users
             val fcmTokenExists = exec(
                 """
-                SELECT COUNT(*) 
-                FROM information_schema.COLUMNS 
+                SELECT COUNT(*) FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = 'users' 
-                AND COLUMN_NAME = 'fcm_token'
-            """
+                AND TABLE_NAME = 'users' AND COLUMN_NAME = 'fcm_token'
+                """
             ) { it.next(); it.getInt(1) } ?: 0 > 0
 
             if (!fcmTokenExists) {
-                exec(
-                    """
-                    ALTER TABLE users 
-                    ADD COLUMN fcm_token VARCHAR(255) NULL
-                """
-                )
+                exec("ALTER TABLE users ADD COLUMN fcm_token VARCHAR(255) NULL")
                 println("Added fcm_token column to users table")
             }
 
-            // Migration 2: Add category to menu_items
+            // Migration 2: Add category to keke_vehicles
             val categoryExists = exec(
                 """
-                SELECT COUNT(*) 
-                FROM information_schema.COLUMNS 
+                SELECT COUNT(*) FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = 'menu_items' 
-                AND COLUMN_NAME = 'category'
-            """
+                AND TABLE_NAME = 'keke_vehicles' AND COLUMN_NAME = 'category'
+                """
             ) { it.next(); it.getInt(1) } ?: 0 > 0
 
             if (!categoryExists) {
-                exec(
-                    """
-                    ALTER TABLE menu_items 
-                    ADD COLUMN category VARCHAR(100) NULL
-                """
-                )
-                println("Added category column to menu_items table")
+                exec("ALTER TABLE keke_vehicles ADD COLUMN category VARCHAR(100) NULL")
+                println("Added category column to keke_vehicles table")
             }
 
-            // Migration 3: Add isAvailable to menu_items
+            // Migration 3: Add is_available to keke_vehicles
             val isAvailableExists = exec(
                 """
-                SELECT COUNT(*) 
-                FROM information_schema.COLUMNS 
+                SELECT COUNT(*) FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = 'menu_items' 
-                AND COLUMN_NAME = 'is_available'
-            """
+                AND TABLE_NAME = 'keke_vehicles' AND COLUMN_NAME = 'is_available'
+                """
             ) { it.next(); it.getInt(1) } ?: 0 > 0
 
             if (!isAvailableExists) {
-                exec(
-                    """
-                    ALTER TABLE menu_items 
-                    ADD COLUMN is_available BOOLEAN DEFAULT TRUE
-                """
-                )
-                println("Added is_available column to menu_items table")
+                exec("ALTER TABLE keke_vehicles ADD COLUMN is_available BOOLEAN DEFAULT TRUE")
+                println("Added is_available column to keke_vehicles table")
             }
 
-            // Migration 4: Update all restaurants to be owned by owner1@example.com
+            // Migration 4: Update all schools to be owned by owner1@example.com
             val owner1Id = UsersTable
                 .select { UsersTable.email eq "owner1@example.com" }
                 .map { it[UsersTable.id] }
                 .firstOrNull()
 
             if (owner1Id != null) {
-                RestaurantsTable.update {
-                    it[ownerId] = owner1Id
-                }
-                println("Updated all restaurants to be owned by owner1@example.com")
+                SchoolsTable.update { it[ownerId] = owner1Id }
+                println("Updated all schools to be owned by owner1@example.com")
             } else {
-                println("Warning: owner1@example.com not found, skipping restaurant ownership migration")
+                println("Warning: owner1@example.com not found, skipping school ownership migration")
             }
 
-            // Update owner password
             updateOwnerPassword()
-
             println("All migrations completed successfully")
         } catch (e: Exception) {
             println("Migration failed: ${e.message}")
@@ -172,23 +132,18 @@ fun Application.seedDatabase() {
         transaction {
             val owner1Id = UUID.randomUUID()
             val owner2Id = UUID.randomUUID()
-            val riderId = UUID.randomUUID()  // Add rider ID
-            // Seed users if none exist
+            val riderId = UUID.randomUUID()
+
             if (UsersTable.selectAll().empty()) {
                 println("Seeding users...")
-
-
-                // Insert owner1
                 UsersTable.insert {
                     it[id] = owner1Id
                     it[email] = "owner1@example.com"
-                    it[name] = "Restaurant Owner"
+                    it[name] = "School Owner"
                     it[role] = "OWNER"
                     it[authProvider] = "email"
                     it[createdAt] = org.jetbrains.exposed.sql.javatime.CurrentDateTime()
                 }
-
-                // Insert owner2
                 UsersTable.insert {
                     it[id] = owner2Id
                     it[email] = "owner2@example.com"
@@ -199,71 +154,39 @@ fun Application.seedDatabase() {
                 }
             }
 
-            if(UsersTable.select { UsersTable.role eq "rider" }.empty()){
+            if (UsersTable.select { UsersTable.role eq "RIDER" }.empty()) {
                 UsersTable.insert {
                     it[id] = riderId
                     it[email] = "rider@example.com"
                     it[name] = "Default Rider"
                     it[role] = "RIDER"
                     it[authProvider] = "email"
-                    it[passwordHash] = "111111" // Add hashed password
+                    it[passwordHash] = "111111"
                     it[createdAt] = org.jetbrains.exposed.sql.javatime.CurrentDateTime()
                 }
-
                 println("Seeded default users: owner1@example.com, owner2@example.com, rider@example.com")
-                println("Default password for all users: password123")
 
-                // Add initial rider location
                 RiderLocationsTable.insert {
                     it[this.riderId] = riderId
-                    it[latitude] = 37.7749 // Default San Francisco coordinates
+                    it[latitude] = 37.7749
                     it[longitude] = -122.4194
                     it[isAvailable] = true
                     it[lastUpdated] = org.jetbrains.exposed.sql.javatime.CurrentDateTime()
                 }
             }
 
-            // Seed categories if none exist
+            // Seed categories
             val categoryIds = if (CategoriesTable.selectAll().empty()) {
                 println("Seeding categories...")
                 val categories = listOf(
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Pizza",
-                        imageUrl = "https://images.vexels.com/content/136312/preview/logo-pizza-fast-food-d65bfe.png"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Fast Food",
-                        imageUrl = "https://www.pngarts.com/files/3/Fast-Food-Free-PNG-Image.png"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Beverages",
-                        imageUrl = "https://www.pngfind.com/pngs/m/172-1729150_alcohol-drinks-png-mojito-drink-transparent-png.png"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Desserts",
-                        imageUrl = "https://img.freepik.com/premium-psd/isolated-cake-style-png-with-white-background-generative-ia_209190-251177.jpg"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Healthy Food",
-                        imageUrl = "https://png.pngtree.com/png-clipart/20190516/original/pngtree-healthy-food-png-image_3776802.jpg"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Asian Cuisine",
-                        imageUrl = "https://e7.pngegg.com/pngimages/706/98/png-clipart/japanese-cuisine-chinese-cuisine-vietnamese-cuisine-asian-cuisine-dish-cooking-leaf-vegetable-food.png"
-                    ),
-                    Category(
-                        id = UUID.randomUUID().toString(),
-                        name = "Burger",
-                        imageUrl = "https://png.pngtree.com/png-vector/20231016/ourmid/pngtree-burger-food-png-free-download-png-image_10199386.png"
-                    )
+                    Category(id = UUID.randomUUID().toString(), name = "Primary School", imageUrl = "https://example.com/primary.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "Secondary School", imageUrl = "https://example.com/secondary.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "University", imageUrl = "https://example.com/university.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "Polytechnic", imageUrl = "https://example.com/poly.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "Vocational", imageUrl = "https://example.com/vocational.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "College", imageUrl = "https://example.com/college.png"),
+                    Category(id = UUID.randomUUID().toString(), name = "Tutorial Center", imageUrl = "https://example.com/tutorial.png")
                 )
-
                 categories.associate { category ->
                     val uuid = UUID.fromString(category.id)
                     CategoriesTable.insert {
@@ -278,183 +201,132 @@ fun Application.seedDatabase() {
                 CategoriesTable.selectAll().associate { it[CategoriesTable.name] to it[CategoriesTable.id] }
             }
 
-            // Seed restaurants if none exist
-            if (RestaurantsTable.selectAll().empty()) {
-                println("Seeding restaurants...")
-                val restaurants = listOf(
-                    Triple(
-                        Pair(
-                            "Pizza Palace",
-                            "https://www.marthastewart.com/thmb/3N-0cJgJfLDyytnCehJd4aVgHJw=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/white-pizza-172-d112100_horiz-c868dcf28ed44b21af90f11797d6d7d6.jpgitokKoRSmCVm"
-                        ),
-                        "123 Main St, New York, NY",
-                        Triple(40.712776, -74.005978, "Pizza")
-                    ),
-                    Triple(
-                        Pair(
-                            "Burger Haven",
-                            "https://imageproxy.wolt.com/mes-image/43bb7be3-03c2-4337-9d52-99cba2b1650d/85493202-0013-44f0-b7c1-59262d53e9ff"
-                        ),
-                        "456 Elm St, Los Angeles, CA",
-                        Triple(40.712776, -74.005979, "Fast Food")
-                    ),
-                    Triple(
-                        Pair(
-                            "Dessert Delight",
-                            "https://static.vecteezy.com/system/resources/previews/032/160/853/large_2x/mouthwatering-dessert-heaven-a-tray-of-assorted-creamy-delights-ai-generated-photo.jpg"
-                        ),
-                        "789 Pine St, Chicago, IL",
-                        Triple(40.712776, -74.005973, "Desserts")
-                    ),
-                    Triple(
-                        Pair(
-                            "Healthy Bites",
-                            "https://i2.wp.com/www.downshiftology.com/wp-content/uploads/2019/04/Cobb-Salad-main.jpg"
-                        ),
-                        "321 Oak St, Miami, FL",
-                        Triple(40.712776, -74.005974, "Healthy Food")
-                    ),
-                    Triple(
-                        Pair(
-                            "Sushi Express",
-                            "https://tb-static.uber.com/prod/image-proc/processed_images/87baf961b666795ea98160dc3b1d465c/fb86662148be855d931b37d6c1e5fcbe.jpeg"
-                        ),
-                        "654 Maple St, Seattle, WA",
-                        Triple(40.712776, -74.005976, "Asian Cuisine")
-                    ),
-                    Triple(
-                        Pair(
-                            "Coffee Corner",
-                            "https://insanelygoodrecipes.com/wp-content/uploads/2020/07/Cup-Of-Creamy-Coffee.png"
-                        ),
-                        "987 Cedar St, San Francisco, CA",
-                        Triple(40.712776, -74.005977, "Beverages")
-                    )
+            // Seed schools
+            if (SchoolsTable.selectAll().empty()) {
+                println("Seeding schools...")
+                val schools = listOf(
+                    Triple(Pair("Sunrise Academy", "https://example.com/sunrise.png"), "12 School Rd, Lagos", Triple(6.5244, 3.3792, "Primary School")),
+                    Triple(Pair("Greenfield Secondary", "https://example.com/greenfield.png"), "45 Education Ave, Abuja", Triple(9.0765, 7.3986, "Secondary School")),
+                    Triple(Pair("City Polytechnic", "https://example.com/citypoly.png"), "78 Poly Close, Ibadan", Triple(7.3775, 3.9470, "Polytechnic")),
+                    Triple(Pair("Crown University", "https://example.com/crown.png"), "1 Crown Gate, Enugu", Triple(6.4584, 7.5464, "University")),
+                    Triple(Pair("Heritage Vocational", "https://example.com/heritage.png"), "33 Skills Lane, Kano", Triple(12.0022, 8.5920, "Vocational")),
+                    Triple(Pair("Bright Future College", "https://example.com/bright.png"), "20 Future Rd, Port Harcourt", Triple(4.8156, 7.0498, "College"))
                 )
-
-                RestaurantsTable.batchInsert(restaurants) { restaurant ->
-                    this[RestaurantsTable.id] = UUID.randomUUID()
-                    this[RestaurantsTable.ownerId] = owner1Id
-                    this[RestaurantsTable.name] = restaurant.first.first
-                    this[RestaurantsTable.address] = restaurant.second
-                    this[RestaurantsTable.latitude] = restaurant.third.first
-                    this[RestaurantsTable.longitude] = restaurant.third.second
-                    this[RestaurantsTable.imageUrl] = restaurant.first.second
-                    this[RestaurantsTable.categoryId] =
-                        categoryIds[restaurant.third.third] ?: error("Category not found: ${restaurant.third.third}")
-                    this[RestaurantsTable.createdAt] = org.jetbrains.exposed.sql.javatime.CurrentTimestamp()
+                SchoolsTable.batchInsert(schools) { school ->
+                    this[SchoolsTable.id] = UUID.randomUUID()
+                    this[SchoolsTable.ownerId] = owner1Id
+                    this[SchoolsTable.name] = school.first.first
+                    this[SchoolsTable.address] = school.second
+                    this[SchoolsTable.latitude] = school.third.first
+                    this[SchoolsTable.longitude] = school.third.second
+                    this[SchoolsTable.imageUrl] = school.first.second
+                    this[SchoolsTable.categoryId] = categoryIds[school.third.third] ?: error("Category not found: ${school.third.third}")
+                    this[SchoolsTable.createdAt] = org.jetbrains.exposed.sql.javatime.CurrentTimestamp()
                 }
-
-                println("Restaurants seeded: ${restaurants.map { it.first }}")
+                println("Schools seeded: ${schools.map { it.first.first }}")
             }
 
-            // Seed menu items if none exist
-            if (MenuItemsTable.selectAll().empty()) {
-                println("Seeding menu items...")
-                val restaurants =
-                    RestaurantsTable.selectAll().associate { it[RestaurantsTable.name] to it[RestaurantsTable.id] }
+            // Seed keke vehicles with real images and driver names
+            if (KekeVehiclesTable.selectAll().empty()) {
+                println("Seeding keke vehicles...")
+                val schools = SchoolsTable.selectAll().associate { it[SchoolsTable.name] to it[SchoolsTable.id] }
 
-                val menuItems = listOf(
-                    Pair(
-                        "Pizza Palace", listOf(
-                            Triple(
-                                "Margherita Pizza", "Classic cheese pizza with fresh basil",
-                                Pair(12.99, "https://foodbyjonister.com/wp-content/uploads/2020/01/pizzadough18.jpg")
-                            ),
-                            Triple(
-                                "Pepperoni Pizza", "Pepperoni, mozzarella, and marinara sauce",
-                                Pair(
-                                    14.99,
-                                    "https://www.cobsbread.com/us/wp-content//uploads/2022/09/Pepperoni-pizza-850x630-1.png"
-                                )
-                            ),
-                            Triple(
-                                "Veggie Supreme", "Loaded with bell peppers, onions, and olives",
-                                Pair(
-                                    13.99,
-                                    "https://www.thecandidcooks.com/wp-content/uploads/2022/07/california-veggie-pizza-feature.jpg"
-                                )
-                            ),
-                            Triple(
-                                "Special Pizza", "Classic cheese pizza with fresh basil",
-                                Pair(
-                                    21.99,
-                                    "https://eatlanders.com/wp-content/uploads/2021/05/new-pizza-pic-e1672671486218.jpeg"
-                                )
-                            ),
-                            Triple(
-                                "Crown Crust Pizza", "Pepperoni, mozzarella, and marinara sauce",
-                                Pair(19.99, "https://wenewsenglish.pk/wp-content/uploads/2024/05/Recipe-1.jpg")
-                            ),
-                            Triple(
-                                "Thin Crust Supreme", "Loaded with bell peppers, onions, and olives",
-                                Pair(
-                                    18.99,
-                                    "https://cdn.apartmenttherapy.info/image/upload/f_jpg,q_auto:eco,c_fill,g_auto,w_1500,ar_4:3/k%2Farchive%2Fcb2e9502cd9da3468caa944e15527b19bce68a8e"
-                                )
-                            ),
-                            Triple(
-                                "Malai Boti Pizza", "Classic cheese pizza with fresh basil",
-                                Pair(
-                                    14.99,
-                                    "https://www.tastekahani.com/wp-content/uploads/2022/05/71.Malai-Boti-Pizza.jpg"
-                                )
-                            ),
-                            Triple(
-                                "Tikka Pizza", "Pepperoni, mozzarella, and marinara sauce",
-                                Pair(
-                                    16.99,
-                                    "https://onestophalal.com/cdn/shop/articles/tikka_masala_pizza-1694014914105_1200x.jpg?v=1694568363"
-                                )
-                            ),
-                            Triple(
-                                "Cheeze Crust Supreme", "Loaded with bell peppers, onions, and olives",
-                                Pair(
-                                    17.99,
-                                    "https://www.allrecipes.com/thmb/ofh4mVETQPBbcOb4uCFQr92cqb4=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/2612551-cheesy-crust-skillet-pizza-The-Gruntled-Gourmand-1x1-1-f9a328af9dfe487a9fc408f581927696.jpg"
-                                )
-                            )
-                        )
+                // Each entry: (vehicleName, driverName - description, price, imageUrl, schoolName)
+                data class KekeVehicleEntry(
+                    val name: String,
+                    val description: String,
+                    val price: Double,
+                    val imageUrl: String,
+                    val schoolName: String
+                )
+
+                val kekeVehicles = listOf(
+                    KekeVehicleEntry(
+                        name = "Keke Marwa — Emeka Okafor",
+                        description = "Driver: Emeka Okafor | Blue Keke Marwa | Plate: LG-234-KE | Seats 3 | Air-cooled engine",
+                        price = 500.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg",
+                        schoolName = "Sunrise Academy"
                     ),
-                    Pair(
-                        "Burger Haven", listOf(
-                            Triple(
-                                "Classic Cheeseburger", "Juicy beef patty with cheddar cheese",
-                                Pair(
-                                    10.99,
-                                    "https://rhubarbandcod.com/wp-content/uploads/2022/06/The-Classic-Cheeseburger-1.jpg"
-                                )
-                            ),
-                            Triple(
-                                "Veggie Burger", "Grilled veggie patty with avocado",
-                                Pair(
-                                    9.99,
-                                    "https://www.foodandwine.com/thmb/pwFie7NRkq4SXMDJU6QKnUKlaoI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/Ultimate-Veggie-Burgers-FT-Recipe-0821-5d7532c53a924a7298d2175cf1d4219f.jpg"
-                                )
-                            )
-                        )
+                    KekeVehicleEntry(
+                        name = "Keke Napep — Chukwudi Eze",
+                        description = "Driver: Chukwudi Eze | Yellow Keke Napep | Plate: LG-891-KN | Seats 3 | Well maintained",
+                        price = 550.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg",
+                        schoolName = "Sunrise Academy"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Marwa — Tunde Adeyemi",
+                        description = "Driver: Tunde Adeyemi | Red Keke Marwa | Plate: LG-445-KM | Seats 3 | Punctual & reliable",
+                        price = 500.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg",
+                        schoolName = "Sunrise Academy"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Napep — Musa Ibrahim",
+                        description = "Driver: Musa Ibrahim | Green Keke Napep | Plate: AB-112-KN | Seats 3 | Fast & safe",
+                        price = 480.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg",
+                        schoolName = "Greenfield Secondary"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Marwa — Sule Abubakar",
+                        description = "Driver: Sule Abubakar | White Keke Marwa | Plate: AB-378-KM | Seats 3 | Comfortable ride",
+                        price = 500.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg",
+                        schoolName = "Greenfield Secondary"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Napep — Biodun Fashola",
+                        description = "Driver: Biodun Fashola | Orange Keke Napep | Plate: OY-556-KN | Seats 3 | Friendly driver",
+                        price = 460.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg",
+                        schoolName = "City Polytechnic"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Marwa — Ifeanyi Nwosu",
+                        description = "Driver: Ifeanyi Nwosu | Black Keke Marwa | Plate: OY-203-KM | Seats 3 | Early riser, always on time",
+                        price = 510.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg",
+                        schoolName = "City Polytechnic"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Napep — Gbenga Olatunji",
+                        description = "Driver: Gbenga Olatunji | Silver Keke Napep | Plate: EN-741-KN | Seats 3 | Knows every school route",
+                        price = 520.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg",
+                        schoolName = "Crown University"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Marwa — Yakubu Garba",
+                        description = "Driver: Yakubu Garba | Blue Keke Marwa | Plate: KN-009-KM | Seats 3 | Safe driving record",
+                        price = 490.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg",
+                        schoolName = "Heritage Vocational"
+                    ),
+                    KekeVehicleEntry(
+                        name = "Keke Napep — Festus Okoro",
+                        description = "Driver: Festus Okoro | Yellow Keke Napep | Plate: RV-334-KN | Seats 3 | 5-star rated driver",
+                        price = 530.0,
+                        imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg",
+                        schoolName = "Bright Future College"
                     )
                 )
 
-                MenuItemsTable.batchInsert(menuItems.flatMap { (restaurantName, items) ->
-                    val restaurantId = restaurants[restaurantName] ?: error("Restaurant not found: $restaurantName")
-                    items.map { menuItem ->
-                        Triple(restaurantId, menuItem.first, menuItem.second to menuItem.third)
-                    }
-                }) { menuItem ->
-                    this[MenuItemsTable.id] = UUID.randomUUID()
-                    this[MenuItemsTable.restaurantId] = menuItem.first
-                    this[MenuItemsTable.name] = menuItem.second
-                    this[MenuItemsTable.description] = menuItem.third.first
-                    this[MenuItemsTable.price] = menuItem.third.second.first
-                    this[MenuItemsTable.imageUrl] = menuItem.third.second.second
-                    this[MenuItemsTable.arModelUrl] = null
-                    this[MenuItemsTable.category] = null // New field
-                    this[MenuItemsTable.isAvailable] = true // New field
-                    this[MenuItemsTable.createdAt] = org.jetbrains.exposed.sql.javatime.CurrentTimestamp()
+                KekeVehiclesTable.batchInsert(kekeVehicles) { vehicle ->
+                    val schoolId = schools[vehicle.schoolName] ?: error("School not found: ${vehicle.schoolName}")
+                    this[KekeVehiclesTable.id] = UUID.randomUUID()
+                    this[KekeVehiclesTable.schoolId] = schoolId
+                    this[KekeVehiclesTable.name] = vehicle.name
+                    this[KekeVehiclesTable.description] = vehicle.description
+                    this[KekeVehiclesTable.price] = vehicle.price
+                    this[KekeVehiclesTable.imageUrl] = vehicle.imageUrl
+                    this[KekeVehiclesTable.arModelUrl] = null
+                    this[KekeVehiclesTable.category] = null
+                    this[KekeVehiclesTable.isAvailable] = true
+                    this[KekeVehiclesTable.createdAt] = org.jetbrains.exposed.sql.javatime.CurrentTimestamp()
                 }
-
-                println("Menu items seeded for all restaurants.")
+                println("Keke vehicles seeded (${kekeVehicles.size} vehicles with driver names and images).")
             }
         }
     }

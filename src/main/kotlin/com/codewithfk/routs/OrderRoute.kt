@@ -1,7 +1,7 @@
 package com.codewithfk.routs
 
-import com.codewithfk.model.PlaceOrderRequest
-import com.codewithfk.services.OrderService
+import com.codewithfk.controllers.PaymentController
+import com.codewithfk.model.*
 import com.codewithfk.utils.respondError
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -11,68 +11,87 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.util.*
-import kotlin.text.get
 
-fun Route.orderRoutes() {
-    route("/orders") {
-
-        /**
-         * Place an order
-         */
-        post {
-            val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
-                ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
-
+fun Route.paymentRoutes() {
+    route("/payments") {
+        // Webhook endpoint (no authentication required)
+        post("/webhook") {
             try {
-                val request = call.receive<PlaceOrderRequest>()
-                val orderId = OrderService.placeOrder(UUID.fromString(userId), request)
-                call.respond(mapOf("id" to orderId.toString(), "message" to "Order placed successfully"))
-            } catch (e: IllegalStateException) {
-                call.respondError(HttpStatusCode.BadRequest, e.message ?: "Error placing order")
+                val payload = call.receiveText()
+                val signature = call.request.header("Stripe-Signature")
+                    ?: throw IllegalArgumentException("No signature header")
+
+                val success = PaymentController.handleWebhookEvent(payload, signature)
+                call.respond(HttpStatusCode.OK, mapOf("success" to success))
+            } catch (e: Exception) {
+                call.respondError(
+                    HttpStatusCode.BadRequest,
+                    e.message ?: "Webhook processing failed"
+                )
             }
         }
 
-        /**
-         * Fetch all orders for the logged-in user
-         */
-        get {
-            val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
-                ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Unauthorized.")
-            val orders = OrderService.getOrdersByUser(UUID.fromString(userId))
-            call.respond(mapOf("orders" to orders))
-        }
+        // Protected routes
+        authenticate {
+            // PaymentSheet flow
+            post("/create-sheet") {
+                val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+                    ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
 
-        /**
-         * Fetch details of a specific order
-         */
-        get("/{id}") {
-            val orderId = call.parameters["id"] ?: return@get call.respondError(
-                HttpStatusCode.BadRequest,
-                "Order ID is required."
-            )
-            try {
-                val order = OrderService.getOrderDetails(UUID.fromString(orderId))
-                call.respond(order)
-            } catch (e: IllegalStateException) {
-                call.respondError(HttpStatusCode.NotFound, e.message ?: "Order not found")
+                try {
+                    val request = call.receive<CreatePaymentIntentRequest>()
+                    val response = PaymentController.createPaymentSheet(
+                        UUID.fromString(userId),
+                        request
+                    )
+                    call.respond(response)
+                } catch (e: Exception) {
+                    call.respondError(
+                        HttpStatusCode.BadRequest,
+                        e.message ?: "Error creating payment sheet"
+                    )
+                }
             }
-        }
 
-        /**
-         * Update order status
-         */
-        patch("/{id}/status") {
-            val orderId = call.parameters["id"] ?: return@patch call.respondError(
-                HttpStatusCode.BadRequest,
-                "Order ID is required."
-            )
-            val params = call.receive<Map<String, String>>()
-            val status =
-                params["status"] ?: return@patch call.respondError(HttpStatusCode.BadRequest, "Status is required.")
+            post("/create-intent") {
+                val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+                    ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
 
-            val success = OrderService.updateOrderStatus(UUID.fromString(orderId), status)
-            if (success) call.respond(mapOf("message" to "Order status updated successfully"))
-            else call.respondError(HttpStatusCode.NotFound, "Order not found")
+                try {
+                    val request = call.receive<CreatePaymentIntentRequest>()
+                    val response = PaymentController.createPaymentSession(
+                        UUID.fromString(userId),
+                        request
+                    )
+                    call.respond(response)
+                } catch (e: Exception) {
+                    call.respondError(
+                        HttpStatusCode.BadRequest,
+                        e.message ?: "Error creating payment intent"
+                    )
+                }
+            }
+
+            post("/confirm/{paymentIntentId}") {
+                val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+                    ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
+                
+                val paymentIntentId = call.parameters["paymentIntentId"] 
+                    ?: return@post call.respondError(HttpStatusCode.BadRequest, "Payment Intent ID required")
+
+                try {
+                    val response = PaymentController.confirmAndPlaceOrder(
+                        UUID.fromString(userId),
+                        paymentIntentId
+                    )
+                    call.respond(response)
+                } catch (e: Exception) {
+                    call.respondError(
+                        HttpStatusCode.BadRequest,
+                        e.message ?: "Error confirming payment"
+                    )
+                }
+            }
         }
     }
-}
+} 

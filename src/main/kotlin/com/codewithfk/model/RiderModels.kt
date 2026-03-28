@@ -14,7 +14,7 @@ data class RiderLocation(
 @Serializable
 data class DeliveryRequest(
     val orderId: String,
-    val restaurantLocation: Location,
+    val schoolLocation: Location,
     val customerLocation: Location,
     val estimatedEarning: Double,
     val distance: Double,
@@ -33,21 +33,21 @@ data class DeliveryPath(
     val currentLocation: Location,
     val nextStop: Location,
     val finalDestination: Location,
-    val polyline: String, // Encoded polyline from Google Maps
+    val polyline: String,
     val estimatedTime: Int, // in minutes
     val deliveryPhase: DeliveryPhase
 )
 
 enum class DeliveryPhase {
-    TO_RESTAURANT,    // Rider heading to restaurant
-    TO_CUSTOMER      // Rider heading to customer
+    TO_SCHOOL,    // Rider heading to school
+    TO_CUSTOMER   // Rider heading to customer
 }
 
 @Serializable
 data class AvailableDelivery(
     val orderId: String,
-    val restaurantName: String,
-    val restaurantAddress: String,
+    val schoolName: String,
+    val schoolAddress: String,
     val customerAddress: String,
     val orderAmount: Double,
     val estimatedDistance: Double,
@@ -74,7 +74,7 @@ enum class DeliveryStatus {
 data class RiderDelivery(
     val orderId: String,
     val status: String,
-    val restaurant: RestaurantDetail,
+    val school: SchoolDetail,
     val customer: CustomerAddress,
     val items: List<OrderItemDetail>,
     val totalAmount: Double,
@@ -84,7 +84,7 @@ data class RiderDelivery(
 )
 
 @Serializable
-data class RestaurantDetail(
+data class SchoolDetail(
     val id: String,
     val name: String,
     val address: String,
@@ -110,4 +110,4 @@ data class OrderItemDetail(
     val name: String,
     val quantity: Int,
     val price: Double
-) 
+)
