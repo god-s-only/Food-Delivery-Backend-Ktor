@@ -18,8 +18,7 @@ object RiderService {
     fun updateRiderLocation(riderId: UUID, latitude: Double, longitude: Double) {
         transaction {
             val existingLocation = RiderLocationsTable
-                .select { RiderLocationsTable.riderId eq riderId }
-                .firstOrNull()
+                .select { RiderLocationsTable.riderId eq riderId }.firstOrNull()
 
             if (existingLocation != null) {
                 RiderLocationsTable.update({ RiderLocationsTable.riderId eq riderId }) {
@@ -45,14 +44,12 @@ object RiderService {
         val originLat = Math.toRadians(lat1)
         val destinationLat = Math.toRadians(lat2)
         val a = sin(dLat / 2).pow(2) + cos(originLat) * cos(destinationLat) * sin(dLon / 2).pow(2)
-        val c = 2 * asin(sqrt(a))
-        return EARTH_RADIUS_KM * c
+        return EARTH_RADIUS_KM * 2 * asin(sqrt(a))
     }
 
     fun findNearbyRiders(schoolLat: Double, schoolLng: Double): List<RiderLocation> {
         return transaction {
-            RiderLocationsTable
-                .select { RiderLocationsTable.isAvailable eq true }
+            RiderLocationsTable.select { RiderLocationsTable.isAvailable eq true }
                 .map {
                     RiderLocation(
                         id = it[RiderLocationsTable.riderId].toString(),
@@ -78,7 +75,6 @@ object RiderService {
 
                 val schoolLat = order[SchoolsTable.latitude]
                 val schoolLng = order[SchoolsTable.longitude]
-
                 val nearbyRiders = findNearbyRiders(schoolLat, schoolLng)
 
                 if (nearbyRiders.isEmpty()) return@transaction false
@@ -93,9 +89,7 @@ object RiderService {
                     notifyRider(UUID.fromString(rider.id), orderId)
                 }
                 true
-            } catch (e: Exception) {
-                false
-            }
+            } catch (e: Exception) { false }
         }
     }
 
@@ -106,8 +100,8 @@ object RiderService {
         riderFcmToken?.let { token ->
             FirebaseService.sendNotification(
                 token = token,
-                title = "New Delivery Request",
-                body = "New keke delivery request available",
+                title = "New Keke Delivery Request",
+                body = "New keke delivery request available near you",
                 data = mapOf("type" to "DELIVERY_REQUEST", "orderId" to orderId.toString())
             )
         }
@@ -130,8 +124,8 @@ object RiderService {
             if (updated) {
                 NotificationService.createNotification(
                     userId = order[OrdersTable.userId],
-                    title = "Delivery Update",
-                    message = "Your order has been assigned to a rider and will be picked up soon",
+                    title = "Rider Assigned",
+                    message = "A rider has been assigned to your keke booking",
                     type = "DELIVERY_STATUS",
                     orderId = orderId
                 )
@@ -141,7 +135,7 @@ object RiderService {
                 NotificationService.createNotification(
                     userId = schoolOwnerId,
                     title = "Rider Assigned",
-                    message = "A rider has been assigned to pick up order #${orderId.toString().take(8)}",
+                    message = "A rider has been assigned to order #${orderId.toString().take(8)}",
                     type = "DELIVERY_STATUS",
                     orderId = orderId
                 )
@@ -280,7 +274,7 @@ object RiderService {
                 val message = when (statusUpdate.status) {
                     "PICKED_UP" -> "Your keke has been picked up and is on the way"
                     "DELIVERED" -> "Your keke has been delivered successfully"
-                    "FAILED" -> "Delivery failed: ${statusUpdate.reason}"
+                    "FAILED" -> "Keke delivery failed: ${statusUpdate.reason}"
                     else -> throw IllegalArgumentException("Invalid status")
                 }
                 NotificationService.createNotification(
@@ -295,13 +289,6 @@ object RiderService {
         }
     }
 
-    private fun calculateEarnings(distance: Double, orderAmount: Double): Double {
-        val baseRate = 2.0
-        val perKmRate = 0.5
-        val orderPercentage = 0.05
-        return baseRate + (distance * perKmRate) + (orderAmount * orderPercentage)
-    }
-
     fun getActiveDeliveries(riderId: UUID): List<RiderDelivery> {
         return transaction {
             (OrdersTable
@@ -314,13 +301,15 @@ object RiderService {
                 .map { row ->
                     val orderId = row[OrdersTable.id]
                     val customerAddress = getOrderAddress(row[OrdersTable.addressId])
+
                     val items = OrderItemsTable
                         .join(KekeVehiclesTable, JoinType.INNER, OrderItemsTable.kekeVehicleId, KekeVehiclesTable.id)
                         .select { OrderItemsTable.orderId eq orderId }
                         .map { itemRow ->
                             OrderItemDetail(
                                 id = itemRow[OrderItemsTable.id].toString(),
-                                name = itemRow[KekeVehiclesTable.name],
+                                kekeVehicleName = itemRow[KekeVehiclesTable.name],
+                                driverName = itemRow[KekeVehiclesTable.driverName],
                                 quantity = itemRow[OrderItemsTable.quantity],
                                 price = itemRow[KekeVehiclesTable.price]
                             )
@@ -360,5 +349,9 @@ object RiderService {
                     )
                 }
         }
+    }
+
+    private fun calculateEarnings(distance: Double, orderAmount: Double): Double {
+        return 2.0 + (distance * 0.5) + (orderAmount * 0.05)
     }
 }

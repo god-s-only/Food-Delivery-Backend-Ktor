@@ -47,10 +47,10 @@ fun Route.authRoutes() {
         val packageName = call.request.header("X-Package-Name")
 
         val userType = when(packageName){
-            "com.codewithfk.foodhub" -> UserRole.CUSTOMER
+            "com.codewithfk.foodhub" -> UserRole.STUDENT
             "com.codewithfk.foodhub.restaurant" -> UserRole.OWNER
             "com.codewithfk.foodhub.rider" -> UserRole.RIDER
-            else -> UserRole.CUSTOMER
+            else -> UserRole.STUDENT
         }
         val token = AuthService.login(email, passwordHash,userType)
         if (token != null) {

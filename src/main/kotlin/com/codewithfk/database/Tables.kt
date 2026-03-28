@@ -9,7 +9,7 @@ object UsersTable : Table("users") {
     val email = varchar("email", 255).uniqueIndex()
     val passwordHash = varchar("password_hash", 255).nullable()
     val authProvider = varchar("auth_provider", 50) // "google", "facebook", "email"
-    val role = varchar("role", 50) // "customer", "rider", "school"
+    val role = varchar("role", 50) // "student", "rider", "school_owner"
     val createdAt = datetime("created_at").defaultExpression(
         org.jetbrains.exposed.sql.javatime.CurrentTimestamp()
     )
@@ -19,34 +19,14 @@ object UsersTable : Table("users") {
         get() = PrimaryKey(id)
 }
 
-object RiderRejectionsTable : Table("rider_rejections") {
-    val id = uuid("id").autoGenerate()
-    val riderId = uuid("rider_id").references(UsersTable.id)
-    val orderId = uuid("order_id").references(OrdersTable.id)
-    val createdAt = datetime("created_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentDateTime())
-
-    override val primaryKey: PrimaryKey
-        get() = PrimaryKey(UsersTable.id)
-}
-
-object CategoriesTable : Table("categories") {
-    val id = uuid("id").autoGenerate()
-    val name = varchar("name", 255).uniqueIndex()
-    val imageUrl = varchar("image_url", 500).nullable()
-    val createdAt = datetime("created_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp())
-    override val primaryKey: PrimaryKey
-        get() = PrimaryKey(id)
-}
-
 object SchoolsTable : Table("schools") {
     val id = uuid("id").autoGenerate()
-    val ownerId = uuid("owner_id").references(UsersTable.id) // User managing the school
+    val ownerId = uuid("owner_id").references(UsersTable.id)
     val name = varchar("name", 255)
     val address = varchar("address", 500)
-    val categoryId = uuid("category_id").references(CategoriesTable.id)
     val imageUrl = varchar("image_url", 500).nullable()
-    val latitude = double("latitude")  // School's latitude
-    val longitude = double("longitude") // School's longitude
+    val latitude = double("latitude")
+    val longitude = double("longitude")
     val createdAt = datetime("created_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp())
     override val primaryKey: PrimaryKey
         get() = PrimaryKey(id)
@@ -55,12 +35,11 @@ object SchoolsTable : Table("schools") {
 object KekeVehiclesTable : Table("keke_vehicles") {
     val id = uuid("id").autoGenerate()
     val schoolId = uuid("school_id").references(SchoolsTable.id)
-    val name = varchar("name", 255)
+    val name = varchar("name", 255)          // e.g. "Keke Napep - Driver: Emeka"
+    val driverName = varchar("driver_name", 255)
     val description = varchar("description", 1000).nullable()
     val price = double("price")
     val imageUrl = varchar("image_url", 500).nullable()
-    val arModelUrl = varchar("ar_model_url", 500).nullable()
-    val category = varchar("category", 100).nullable()
     val isAvailable = bool("is_available").default(true)
     val createdAt = datetime("created_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp())
     override val primaryKey: PrimaryKey
@@ -69,9 +48,9 @@ object KekeVehiclesTable : Table("keke_vehicles") {
 
 object CartTable : Table("cart") {
     val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)           // Cart belongs to a user
-    val schoolId = uuid("school_id").references(SchoolsTable.id)     // School associated with the cart
-    val kekeVehicleId = uuid("keke_vehicle_id").references(KekeVehiclesTable.id) // KekeVehicle in cart
+    val userId = uuid("user_id").references(UsersTable.id)
+    val schoolId = uuid("school_id").references(SchoolsTable.id)
+    val kekeVehicleId = uuid("keke_vehicle_id").references(KekeVehiclesTable.id)
     val quantity = integer("quantity")
     val addedAt = datetime("added_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp())
     override val primaryKey: PrimaryKey
@@ -116,4 +95,14 @@ object OrderItemsTable : Table("order_items") {
     val quantity = integer("quantity")
 
     override val primaryKey = PrimaryKey(id)
+}
+
+object RiderRejectionsTable : Table("rider_rejections") {
+    val id = uuid("id").autoGenerate()
+    val riderId = uuid("rider_id").references(UsersTable.id)
+    val orderId = uuid("order_id").references(OrdersTable.id)
+    val createdAt = datetime("created_at").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentDateTime())
+
+    override val primaryKey: PrimaryKey
+        get() = PrimaryKey(id)
 }

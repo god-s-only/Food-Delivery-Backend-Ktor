@@ -11,35 +11,29 @@ import io.ktor.server.routing.*
 import java.util.*
 
 fun Route.kekeVehicleRoutes() {
+
+    // Get all keke vehicles for a school
     route("/schools/{id}/keke-vehicles") {
-        /**
-         * Fetch all keke vehicles for a school
-         */
         get {
             val schoolId = call.parameters["id"] ?: return@get call.respondError(
                 "School ID is required.", HttpStatusCode.BadRequest
             )
-            val kekeVehicles = KekeVehicleService.getKekeVehiclesBySchool(UUID.fromString(schoolId))
-            call.respond(mapOf("kekeVehicles" to kekeVehicles))
+            val vehicles = KekeVehicleService.getKekeVehiclesBySchool(UUID.fromString(schoolId))
+            call.respond(mapOf("kekeVehicles" to vehicles))
         }
 
-        /**
-         * Add a new keke vehicle to a school
-         */
         post {
             val schoolId = call.parameters["id"] ?: return@post call.respondError(
                 "School ID is required.", HttpStatusCode.BadRequest
             )
-            val kekeVehicle = call.receive<KekeVehicle>().copy(schoolId = schoolId)
-            val vehicleId = KekeVehicleService.addKekeVehicle(kekeVehicle)
+            val vehicle = call.receive<KekeVehicle>().copy(schoolId = schoolId)
+            val vehicleId = KekeVehicleService.addKekeVehicle(vehicle)
             call.respond(mapOf("id" to vehicleId.toString(), "message" to "Keke vehicle added successfully"))
         }
     }
 
+    // Update or delete a specific keke vehicle
     route("/keke-vehicles/{vehicleId}") {
-        /**
-         * Update a keke vehicle
-         */
         patch {
             val vehicleId = call.parameters["vehicleId"] ?: return@patch call.respondError(
                 "Keke vehicle ID is required.", HttpStatusCode.BadRequest
@@ -50,9 +44,6 @@ fun Route.kekeVehicleRoutes() {
             else call.respondError("Keke vehicle not found", HttpStatusCode.NotFound)
         }
 
-        /**
-         * Delete a keke vehicle
-         */
         delete {
             val vehicleId = call.parameters["vehicleId"] ?: return@delete call.respondError(
                 "Keke vehicle ID is required.", HttpStatusCode.BadRequest

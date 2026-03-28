@@ -1,7 +1,6 @@
 package com.codewithfk.model
 
 import kotlinx.serialization.Serializable
-import java.util.UUID
 
 @Serializable
 data class School(
@@ -9,10 +8,9 @@ data class School(
     val ownerId: String,
     val name: String,
     val address: String,
-    val categoryId: String,
-    val latitude: Double,
     val imageUrl: String,
+    val latitude: Double,
     val longitude: Double,
     val createdAt: String,
-    val distance: Double? = null,
+    val distance: Double? = null
 )

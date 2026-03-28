@@ -16,7 +16,8 @@ import java.util.*
 fun Route.schoolOwnerRoutes() {
     route("/school-owner") {
         authenticate {
-            // Get school orders
+
+            // Get all orders for the school
             get("/orders") {
                 val ownerId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                     ?: return@get call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
@@ -25,21 +26,15 @@ fun Route.schoolOwnerRoutes() {
                 call.respond(mapOf("orders" to orders))
             }
 
-            // Accept/Reject order
+            // Accept or reject an order
             post("/orders/{orderId}/action") {
                 val ownerId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                     ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
-                val orderId = call.parameters["orderId"] ?: return@post call.respondError(
-                    HttpStatusCode.BadRequest, "Order ID is required"
-                )
+                val orderId = call.parameters["orderId"]
+                    ?: return@post call.respondError(HttpStatusCode.BadRequest, "Order ID is required")
                 val request = call.receive<OrderActionRequest>()
                 try {
-                    OrderService.handleOrderAction(
-                        orderId = UUID.fromString(orderId),
-                        ownerId = UUID.fromString(ownerId),
-                        action = request.action,
-                        reason = request.reason
-                    )
+                    OrderService.handleOrderAction(UUID.fromString(orderId), UUID.fromString(ownerId), request.action, request.reason)
                     call.respond(mapOf("message" to "Order ${request.action.lowercase()} successfully"))
                 } catch (e: IllegalStateException) {
                     call.respondError(HttpStatusCode.BadRequest, e.message ?: "Error processing order action")
@@ -50,9 +45,8 @@ fun Route.schoolOwnerRoutes() {
             patch("/orders/{orderId}/status") {
                 val ownerId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                     ?: return@patch call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
-                val orderId = call.parameters["orderId"] ?: return@patch call.respondError(
-                    HttpStatusCode.BadRequest, "Order ID is required"
-                )
+                val orderId = call.parameters["orderId"]
+                    ?: return@patch call.respondError(HttpStatusCode.BadRequest, "Order ID is required")
                 val request = call.receive<UpdateOrderStatusRequest>()
                 try {
                     val validTransitions = mapOf(
@@ -62,12 +56,9 @@ fun Route.schoolOwnerRoutes() {
                     )
                     val currentStatus = OrderService.getOrderDetails(UUID.fromString(orderId)).status
                     if (validTransitions[currentStatus] != request.status) {
-                        return@patch call.respondError(
-                            HttpStatusCode.BadRequest,
-                            "Invalid status transition from $currentStatus to ${request.status}"
-                        )
+                        return@patch call.respondError(HttpStatusCode.BadRequest, "Invalid status transition from $currentStatus to ${request.status}")
                     }
-                    OrderService.updateOrderStatus(orderId = UUID.fromString(orderId), status = request.status)
+                    OrderService.updateOrderStatus(UUID.fromString(orderId), request.status)
                     call.respond(mapOf("message" to "Order status updated successfully"))
                 } catch (e: IllegalStateException) {
                     call.respondError(HttpStatusCode.BadRequest, e.message ?: "Error updating order status")

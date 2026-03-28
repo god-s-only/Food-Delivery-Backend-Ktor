@@ -20,13 +20,15 @@ object CartService {
                         id = it[CartTable.id].toString(),
                         userId = it[CartTable.userId].toString(),
                         schoolId = it[CartTable.schoolId].toString(),
-                        kekeVehicleId = KekeVehicle(
+                        kekeVehicle = KekeVehicle(
                             id = it[KekeVehiclesTable.id].toString(),
+                            schoolId = it[KekeVehiclesTable.schoolId].toString(),
                             name = it[KekeVehiclesTable.name],
+                            driverName = it[KekeVehiclesTable.driverName],
                             description = it[KekeVehiclesTable.description],
                             price = it[KekeVehiclesTable.price],
-                            schoolId = it[KekeVehiclesTable.schoolId].toString(),
-                            imageUrl = it[KekeVehiclesTable.imageUrl]
+                            imageUrl = it[KekeVehiclesTable.imageUrl],
+                            isAvailable = it[KekeVehiclesTable.isAvailable]
                         ),
                         quantity = it[CartTable.quantity],
                         addedAt = it[CartTable.addedAt].toString()

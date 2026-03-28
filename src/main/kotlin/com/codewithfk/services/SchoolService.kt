@@ -18,7 +18,7 @@ object SchoolService {
         return 2 * EARTH_RADIUS_KM * atan2(sqrt(a), sqrt(1 - a))
     }
 
-    fun addSchool(ownerId: UUID, name: String, address: String, latitude: Double, longitude: Double, categoryId: UUID): UUID {
+    fun addSchool(ownerId: UUID, name: String, address: String, latitude: Double, longitude: Double): UUID {
         return transaction {
             SchoolsTable.insert {
                 it[this.ownerId] = ownerId
@@ -26,20 +26,13 @@ object SchoolService {
                 it[this.address] = address
                 it[this.latitude] = latitude
                 it[this.longitude] = longitude
-                it[this.categoryId] = categoryId
             } get SchoolsTable.id
         }
     }
 
-    fun getNearbySchools(lat: Double, lon: Double, categoryId: UUID? = null): List<School> {
+    fun getNearbySchools(lat: Double, lon: Double): List<School> {
         return transaction {
-            val query = if (categoryId != null) {
-                SchoolsTable.select { SchoolsTable.categoryId eq categoryId }
-            } else {
-                SchoolsTable.selectAll()
-            }
-
-            query.mapNotNull {
+            SchoolsTable.selectAll().mapNotNull {
                 val distance = haversine(lat, lon, it[SchoolsTable.latitude], it[SchoolsTable.longitude])
                 if (distance <= 5.0) {
                     School(
@@ -47,12 +40,11 @@ object SchoolService {
                         ownerId = it[SchoolsTable.ownerId].toString(),
                         name = it[SchoolsTable.name],
                         address = it[SchoolsTable.address],
-                        categoryId = it[SchoolsTable.categoryId].toString(),
+                        imageUrl = it[SchoolsTable.imageUrl] ?: "",
                         latitude = it[SchoolsTable.latitude],
                         longitude = it[SchoolsTable.longitude],
                         createdAt = it[SchoolsTable.createdAt].toString(),
-                        distance = distance,
-                        imageUrl = it[SchoolsTable.imageUrl].toString()
+                        distance = distance
                     )
                 } else null
             }
@@ -67,12 +59,11 @@ object SchoolService {
                     ownerId = it[SchoolsTable.ownerId].toString(),
                     name = it[SchoolsTable.name],
                     address = it[SchoolsTable.address],
-                    categoryId = it[SchoolsTable.categoryId].toString(),
+                    imageUrl = it[SchoolsTable.imageUrl] ?: "",
                     latitude = it[SchoolsTable.latitude],
                     longitude = it[SchoolsTable.longitude],
                     createdAt = it[SchoolsTable.createdAt].toString(),
-                    distance = null,
-                    imageUrl = it[SchoolsTable.imageUrl].toString()
+                    distance = null
                 )
             }.singleOrNull()
         }

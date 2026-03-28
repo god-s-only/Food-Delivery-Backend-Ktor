@@ -19,7 +19,8 @@ object OrderService {
 
             val totalAmount = cartItems.sumOf {
                 val quantity = it[CartTable.quantity]
-                val price = KekeVehiclesTable.select { KekeVehiclesTable.id eq it[CartTable.kekeVehicleId] }
+                val price = KekeVehiclesTable
+                    .select { KekeVehiclesTable.id eq it[CartTable.kekeVehicleId] }
                     .single()[KekeVehiclesTable.price]
                 quantity * price
             }
@@ -36,20 +37,22 @@ object OrderService {
                 ?: throw IllegalStateException("Address not found")
 
             if (address.userId != userId.toString()) {
-                throw IllegalStateException("Address does not belong to user")
+                throw IllegalStateException("Address does not belong to student")
             }
 
             val cartItems = CartTable.select { CartTable.userId eq userId }
             if (cartItems.empty()) throw IllegalStateException("Cart is empty")
 
+            // All keke vehicles must be from the same school
             val schoolId = cartItems.first()[CartTable.schoolId]
             if (!cartItems.all { it[CartTable.schoolId] == schoolId }) {
-                throw IllegalStateException("All items must be from the same school")
+                throw IllegalStateException("All keke vehicles must be from the same school")
             }
 
             val totalAmount = cartItems.sumOf {
                 val quantity = it[CartTable.quantity]
-                val price = KekeVehiclesTable.select { KekeVehiclesTable.id eq it[CartTable.kekeVehicleId] }
+                val price = KekeVehiclesTable
+                    .select { KekeVehiclesTable.id eq it[CartTable.kekeVehicleId] }
                     .single()[KekeVehiclesTable.price]
                 quantity * price
             }
@@ -65,6 +68,7 @@ object OrderService {
                 it[this.riderId] = null
             } get OrdersTable.id
 
+            // Notify school owner
             val schoolOwnerId = SchoolsTable
                 .select { SchoolsTable.id eq schoolId }
                 .map { it[SchoolsTable.ownerId] }
@@ -72,8 +76,8 @@ object OrderService {
 
             NotificationService.createNotification(
                 userId = schoolOwnerId,
-                title = "New Order Received",
-                message = "New order #${orderId.toString().take(8)} worth ₦${totalAmount} is waiting for acceptance",
+                title = "New Keke Booking Received",
+                message = "New booking #${orderId.toString().take(8)} worth ₦${totalAmount} is waiting for acceptance",
                 type = "order",
                 orderId = orderId
             )
@@ -93,7 +97,8 @@ object OrderService {
 
     fun getOrdersByUser(userId: UUID): List<Order> {
         return transaction {
-            (OrdersTable.join(SchoolsTable, JoinType.LEFT, OrdersTable.schoolId, SchoolsTable.id)
+            (OrdersTable
+                .join(SchoolsTable, JoinType.LEFT, OrdersTable.schoolId, SchoolsTable.id)
                 .select { OrdersTable.userId eq userId })
                 .map { orderRow ->
                     val orderId = orderRow[OrdersTable.id]
@@ -113,10 +118,9 @@ object OrderService {
                             ownerId = orderRow[SchoolsTable.ownerId].toString(),
                             name = orderRow[SchoolsTable.name],
                             address = orderRow[SchoolsTable.address],
-                            categoryId = orderRow[SchoolsTable.categoryId].toString(),
+                            imageUrl = orderRow[SchoolsTable.imageUrl] ?: "",
                             latitude = orderRow[SchoolsTable.latitude],
                             longitude = orderRow[SchoolsTable.longitude],
-                            imageUrl = orderRow[SchoolsTable.imageUrl] ?: "",
                             createdAt = orderRow[SchoolsTable.createdAt].toString()
                         ),
                         createdAt = orderRow[OrdersTable.createdAt].toString(),
@@ -130,6 +134,7 @@ object OrderService {
         return transaction {
             val order = OrdersTable.select { OrdersTable.id eq orderId }
                 .firstOrNull() ?: throw IllegalStateException("Order not found")
+
             Order(
                 id = order[OrdersTable.id].toString(),
                 userId = order[OrdersTable.userId].toString(),
@@ -154,12 +159,14 @@ object OrderService {
                 it[OrdersTable.status] = status
                 it[OrdersTable.updatedAt] = org.jetbrains.exposed.sql.javatime.CurrentDateTime()
             } > 0
+
             if (updated) {
-                val userId = OrdersTable.select { OrdersTable.id eq orderId }.map { it[OrdersTable.userId] }.single()
+                val userId = OrdersTable.select { OrdersTable.id eq orderId }
+                    .map { it[OrdersTable.userId] }.single()
                 NotificationService.createNotification(
                     userId = userId,
-                    title = "Order Status Updated",
-                    message = "Your order #${orderId.toString().take(8)} status has been updated to $status",
+                    title = "Booking Status Updated",
+                    message = "Your keke booking #${orderId.toString().take(8)} status updated to $status",
                     type = "order",
                     orderId = orderId
                 )
@@ -170,7 +177,8 @@ object OrderService {
 
     fun getOrderByPaymentIntentId(paymentIntentId: String): Order? {
         return transaction {
-            OrdersTable.join(SchoolsTable, JoinType.LEFT, OrdersTable.schoolId, SchoolsTable.id)
+            OrdersTable
+                .join(SchoolsTable, JoinType.LEFT, OrdersTable.schoolId, SchoolsTable.id)
                 .select { OrdersTable.stripePaymentIntentId eq paymentIntentId }
                 .map { row ->
                     Order(
@@ -191,10 +199,9 @@ object OrderService {
                             ownerId = row[SchoolsTable.ownerId].toString(),
                             name = row[SchoolsTable.name],
                             address = row[SchoolsTable.address],
-                            categoryId = row[SchoolsTable.categoryId].toString(),
+                            imageUrl = row[SchoolsTable.imageUrl] ?: "",
                             latitude = row[SchoolsTable.latitude],
                             longitude = row[SchoolsTable.longitude],
-                            imageUrl = row[SchoolsTable.imageUrl] ?: "",
                             createdAt = row[SchoolsTable.createdAt].toString()
                         )
                     )
@@ -222,13 +229,19 @@ object OrderService {
 
             OrdersTable.update({ OrdersTable.id eq orderId }) { it[status] = newStatus.name }
 
-            val customerId = order[OrdersTable.userId]
             val message = when (newStatus) {
-                OrderStatus.ACCEPTED -> "Your order has been accepted and will be prepared soon"
-                OrderStatus.REJECTED -> "Your order was rejected${reason?.let { " - $it" } ?: ""}"
+                OrderStatus.ACCEPTED -> "Your keke booking has been accepted"
+                OrderStatus.REJECTED -> "Your keke booking was rejected${reason?.let { " - $it" } ?: ""}"
                 else -> throw IllegalStateException("Unexpected status")
             }
-            NotificationService.createNotification(userId = customerId, title = "Order Update", message = message, type = "ORDER_STATUS", orderId = orderId)
+
+            NotificationService.createNotification(
+                userId = order[OrdersTable.userId],
+                title = "Booking Update",
+                message = message,
+                type = "ORDER_STATUS",
+                orderId = orderId
+            )
             true
         }
     }
@@ -257,7 +270,8 @@ object OrderService {
     private fun getOrderItems(orderId: UUID): List<OrderItem> {
         return OrderItemsTable.select { OrderItemsTable.orderId eq orderId }
             .map { row ->
-                val vehicle = KekeVehiclesTable.select { KekeVehiclesTable.id eq row[OrderItemsTable.kekeVehicleId] }.single()
+                val vehicle = KekeVehiclesTable
+                    .select { KekeVehiclesTable.id eq row[OrderItemsTable.kekeVehicleId] }.single()
                 OrderItem(
                     id = row[OrderItemsTable.id].toString(),
                     orderId = orderId.toString(),
@@ -277,10 +291,9 @@ object OrderService {
                         ownerId = row[SchoolsTable.ownerId].toString(),
                         name = row[SchoolsTable.name],
                         address = row[SchoolsTable.address],
-                        categoryId = row[SchoolsTable.categoryId].toString(),
+                        imageUrl = row[SchoolsTable.imageUrl] ?: "",
                         latitude = row[SchoolsTable.latitude],
                         longitude = row[SchoolsTable.longitude],
-                        imageUrl = row[SchoolsTable.imageUrl] ?: "",
                         createdAt = row[SchoolsTable.createdAt].toString()
                     )
                 }.first()

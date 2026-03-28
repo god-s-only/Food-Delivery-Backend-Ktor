@@ -25,9 +25,8 @@ data class CartResponse(
 
 fun Route.cartRoutes() {
     route("/cart") {
-        /**
-         * Fetch all items in the cart
-         */
+
+        // Get all items in cart
         get {
             val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                 ?: return@get call.respondError("Unauthorized.", HttpStatusCode.Unauthorized)
@@ -36,62 +35,41 @@ fun Route.cartRoutes() {
             call.respond(CartResponse(items = cartItems, checkoutDetails = checkoutDetails))
         }
 
-        /**
-         * Add a keke vehicle to the cart
-         */
+        // Add a keke vehicle to cart
         post {
             val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                 ?: return@post call.respondError(HttpStatusCode.Unauthorized, "Unauthorized.")
             val request = call.receive<AddToCartRequest>()
 
-            val schoolId = UUID.fromString(
-                request.schoolId as? String ?: return@post call.respondError(
-                    HttpStatusCode.BadRequest, "School ID is required."
-                )
-            )
-            val kekeVehicleId = UUID.fromString(
-                request.kekeVehicleId as? String ?: return@post call.respondError(
-                    HttpStatusCode.BadRequest, "Keke vehicle ID is required."
-                )
-            )
-            val quantity = (request.quantity as? Int) ?: return@post call.respondError(
-                HttpStatusCode.BadRequest, "Quantity is required."
-            )
+            val schoolId = UUID.fromString(request.schoolId)
+            val kekeVehicleId = UUID.fromString(request.kekeVehicleId)
 
-            val cartItemId = CartService.addToCart(UUID.fromString(userId), schoolId, kekeVehicleId, quantity)
+            val cartItemId = CartService.addToCart(UUID.fromString(userId), schoolId, kekeVehicleId, request.quantity)
             call.respond(mapOf("id" to cartItemId.toString(), "message" to "Keke vehicle added to cart"))
         }
 
-        /**
-         * Update keke vehicle quantity in the cart
-         */
+        // Update quantity
         patch {
             val cartItem = call.receive<UpdateCartItemRequest>()
-            val quantity = cartItem.quantity
-            if (quantity == 0) {
+            if (cartItem.quantity == 0) {
                 call.respondError(HttpStatusCode.BadRequest, "Quantity cannot be zero")
                 return@patch
             }
-            val success = CartService.updateCartItemQuantity(UUID.fromString(cartItem.cartItemId), quantity)
+            val success = CartService.updateCartItemQuantity(UUID.fromString(cartItem.cartItemId), cartItem.quantity)
             if (success) call.respond(mapOf("message" to "Cart item updated successfully"))
             else call.respondError(HttpStatusCode.NotFound, "Cart item not found")
         }
 
-        /**
-         * Remove a keke vehicle from the cart
-         */
+        // Remove one item
         delete("/{cartItemId}") {
-            val cartItemId = call.parameters["cartItemId"] ?: return@delete call.respondError(
-                HttpStatusCode.BadRequest, "Cart item ID is required."
-            )
+            val cartItemId = call.parameters["cartItemId"]
+                ?: return@delete call.respondError(HttpStatusCode.BadRequest, "Cart item ID is required.")
             val success = CartService.removeCartItem(UUID.fromString(cartItemId))
             if (success) call.respond(mapOf("message" to "Cart item removed successfully"))
             else call.respondError(HttpStatusCode.NotFound, "Cart item not found")
         }
 
-        /**
-         * Clear the entire cart
-         */
+        // Clear entire cart
         delete {
             val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
                 ?: return@delete call.respondError(HttpStatusCode.Unauthorized, "Unauthorized.")

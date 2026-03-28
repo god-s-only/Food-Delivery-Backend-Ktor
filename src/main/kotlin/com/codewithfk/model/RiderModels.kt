@@ -34,13 +34,13 @@ data class DeliveryPath(
     val nextStop: Location,
     val finalDestination: Location,
     val polyline: String,
-    val estimatedTime: Int, // in minutes
+    val estimatedTime: Int, // minutes
     val deliveryPhase: DeliveryPhase
 )
 
 enum class DeliveryPhase {
-    TO_SCHOOL,    // Rider heading to school
-    TO_CUSTOMER   // Rider heading to customer
+    TO_SCHOOL,
+    TO_CUSTOMER
 }
 
 @Serializable
@@ -62,12 +62,7 @@ data class DeliveryStatusUpdate(
 )
 
 enum class DeliveryStatus {
-    PENDING,
-    ACCEPTED,
-    REJECTED,
-    PICKED_UP,
-    DELIVERED,
-    FAILED
+    PENDING, ACCEPTED, REJECTED, PICKED_UP, DELIVERED, FAILED
 }
 
 @Serializable
@@ -107,7 +102,8 @@ data class CustomerAddress(
 @Serializable
 data class OrderItemDetail(
     val id: String,
-    val name: String,
+    val kekeVehicleName: String,
+    val driverName: String,
     val quantity: Int,
     val price: Double
 )

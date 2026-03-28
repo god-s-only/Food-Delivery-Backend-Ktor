@@ -17,44 +17,47 @@ object KekeVehicleService {
                         id = it[KekeVehiclesTable.id].toString(),
                         schoolId = it[KekeVehiclesTable.schoolId].toString(),
                         name = it[KekeVehiclesTable.name],
+                        driverName = it[KekeVehiclesTable.driverName],
                         description = it[KekeVehiclesTable.description],
                         price = it[KekeVehiclesTable.price],
                         imageUrl = it[KekeVehiclesTable.imageUrl],
-                        arModelUrl = it[KekeVehiclesTable.arModelUrl],
+                        isAvailable = it[KekeVehiclesTable.isAvailable],
                         createdAt = it[KekeVehiclesTable.createdAt].toString()
                     )
                 }
         }
     }
 
-    fun addKekeVehicle(kekeVehicle: KekeVehicle): UUID {
+    fun addKekeVehicle(vehicle: KekeVehicle): UUID {
         return transaction {
             KekeVehiclesTable.insert {
-                it[this.schoolId] = UUID.fromString(kekeVehicle.schoolId)
-                it[this.name] = kekeVehicle.name
-                it[this.description] = kekeVehicle.description
-                it[this.price] = kekeVehicle.price
-                it[this.imageUrl] = kekeVehicle.imageUrl
-                it[this.arModelUrl] = kekeVehicle.arModelUrl
+                it[this.schoolId] = UUID.fromString(vehicle.schoolId)
+                it[this.name] = vehicle.name
+                it[this.driverName] = vehicle.driverName
+                it[this.description] = vehicle.description
+                it[this.price] = vehicle.price
+                it[this.imageUrl] = vehicle.imageUrl
+                it[this.isAvailable] = vehicle.isAvailable
             } get KekeVehiclesTable.id
         }
     }
 
-    fun updateKekeVehicle(kekeVehicleId: UUID, updatedFields: Map<String, Any?>): Boolean {
+    fun updateKekeVehicle(vehicleId: UUID, updatedFields: Map<String, Any?>): Boolean {
         return transaction {
-            KekeVehiclesTable.update({ KekeVehiclesTable.id eq kekeVehicleId }) { row ->
+            KekeVehiclesTable.update({ KekeVehiclesTable.id eq vehicleId }) { row ->
                 updatedFields["name"]?.let { row[KekeVehiclesTable.name] = it as String }
+                updatedFields["driverName"]?.let { row[KekeVehiclesTable.driverName] = it as String }
                 updatedFields["description"]?.let { row[KekeVehiclesTable.description] = it as String }
                 updatedFields["price"]?.let { row[KekeVehiclesTable.price] = it as Double }
                 updatedFields["imageUrl"]?.let { row[KekeVehiclesTable.imageUrl] = it as String }
-                updatedFields["arModelUrl"]?.let { row[KekeVehiclesTable.arModelUrl] = it as String }
+                updatedFields["isAvailable"]?.let { row[KekeVehiclesTable.isAvailable] = it as Boolean }
             } > 0
         }
     }
 
-    fun deleteKekeVehicle(kekeVehicleId: UUID): Boolean {
+    fun deleteKekeVehicle(vehicleId: UUID): Boolean {
         return transaction {
-            KekeVehiclesTable.deleteWhere { KekeVehiclesTable.id eq kekeVehicleId } > 0
+            KekeVehiclesTable.deleteWhere { KekeVehiclesTable.id eq vehicleId } > 0
         }
     }
 }

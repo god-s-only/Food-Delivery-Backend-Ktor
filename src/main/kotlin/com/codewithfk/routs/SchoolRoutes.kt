@@ -14,9 +14,7 @@ import java.util.*
 fun Route.schoolRoutes() {
     route("/schools") {
 
-        /**
-         * Add a new school (owner-only).
-         */
+        // Add a new school (owner only)
         authenticate {
             post {
                 val params = call.receive<Map<String, String>>()
@@ -27,36 +25,26 @@ fun Route.schoolRoutes() {
                 val address = params["address"] ?: return@post call.respondError("School address is required.", HttpStatusCode.BadRequest)
                 val latitude = params["latitude"]?.toDoubleOrNull() ?: return@post call.respondError("Latitude is required.", HttpStatusCode.BadRequest)
                 val longitude = params["longitude"]?.toDoubleOrNull() ?: return@post call.respondError("Longitude is required.", HttpStatusCode.BadRequest)
-                val categoryId = params["categoryId"] ?: return@post call.respondError("Valid category ID is required.", HttpStatusCode.BadRequest)
 
-                val schoolId = SchoolService.addSchool(
-                    UUID.fromString(ownerId), name, address, latitude, longitude, UUID.fromString(categoryId)
-                )
+                val schoolId = SchoolService.addSchool(UUID.fromString(ownerId), name, address, latitude, longitude)
                 call.respond(mapOf("id" to schoolId.toString(), "message" to "School added successfully"))
             }
         }
 
-        /**
-         * Fetch nearby schools.
-         */
+        // Fetch nearby schools
         get {
             val lat = call.request.queryParameters["lat"]?.toDoubleOrNull()
             val lon = call.request.queryParameters["lon"]?.toDoubleOrNull()
-            val categoryId: String? = call.request.queryParameters["categoryId"]
 
             if (lat == null || lon == null) {
                 call.respondError("Latitude and longitude are required.", HttpStatusCode.BadRequest)
                 return@get
             }
-            var uuid: UUID? = null
-            categoryId?.let { uuid = UUID.fromString(it) }
-            val schools = SchoolService.getNearbySchools(lat, lon, uuid)
+            val schools = SchoolService.getNearbySchools(lat, lon)
             call.respond(HttpStatusCode.OK, mapOf("data" to schools))
         }
 
-        /**
-         * Get details of a specific school.
-         */
+        // Get a specific school
         get("/{id}") {
             val id = call.parameters["id"] ?: return@get call.respondError("School ID is required.", HttpStatusCode.BadRequest)
             val school = SchoolService.getSchoolById(UUID.fromString(id))

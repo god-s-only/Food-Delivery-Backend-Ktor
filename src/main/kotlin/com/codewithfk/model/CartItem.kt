@@ -7,7 +7,7 @@ data class CartItem(
     val id: String,
     val userId: String,
     val schoolId: String,
-    val kekeVehicleId: KekeVehicle?,
+    val kekeVehicle: KekeVehicle?,
     val quantity: Int,
     val addedAt: String
 )

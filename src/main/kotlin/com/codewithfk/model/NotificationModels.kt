@@ -18,4 +18,4 @@ data class Notification(
 data class NotificationResponse(
     val notifications: List<Notification>,
     val unreadCount: Int
-) 
+)

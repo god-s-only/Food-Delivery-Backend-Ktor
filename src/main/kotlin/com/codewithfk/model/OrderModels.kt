@@ -65,19 +65,29 @@ data class UpdateOrderStatusRequest(
 )
 
 @Serializable
+data class UpdateSchoolRequest(
+    val name: String? = null,
+    val address: String? = null,
+    val imageUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+@Serializable
 data class SchoolStatistics(
     val totalOrders: Int,
     val totalRevenue: Double,
     val averageOrderValue: Double,
-    val popularKekeVehicles: List<PopularItem>,
+    val popularKekeVehicles: List<PopularKeke>,
     val ordersByStatus: Map<String, Int>,
     val revenueByDay: List<DailyRevenue>
 )
 
 @Serializable
-data class PopularItem(
+data class PopularKeke(
     val id: String,
     val name: String,
+    val driverName: String,
     val totalOrders: Int,
     val revenue: Double
 )
@@ -87,14 +97,4 @@ data class DailyRevenue(
     val date: String,
     val revenue: Double,
     val orders: Int
-)
-
-@Serializable
-data class UpdateSchoolRequest(
-    val name: String? = null,
-    val address: String? = null,
-    val imageUrl: String? = null,
-    val categoryId: String? = null,
-    val latitude: Double? = null,
-    val longitude: Double? = null
 )
