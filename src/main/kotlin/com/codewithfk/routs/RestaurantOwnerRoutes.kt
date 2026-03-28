@@ -2,7 +2,6 @@ package com.codewithfk.routs
 
 import com.codewithfk.model.*
 import com.codewithfk.services.OrderService
-import com.codewithfk.services.RestaurantOwnerService
 import com.codewithfk.utils.respondError
 import io.ktor.http.*
 import io.ktor.server.application.*

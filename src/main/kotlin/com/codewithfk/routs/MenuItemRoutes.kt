@@ -2,7 +2,6 @@ package com.codewithfk.routs
 
 
 import com.codewithfk.model.MenuItem
-import com.codewithfk.services.MenuItemService
 import com.codewithfk.utils.respondError
 import io.ktor.http.*
 import io.ktor.server.application.*

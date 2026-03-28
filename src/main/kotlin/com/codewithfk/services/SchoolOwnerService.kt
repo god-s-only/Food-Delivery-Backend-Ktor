@@ -8,6 +8,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.util.*
 import org.jetbrains.exposed.sql.DoubleColumnType
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.times
 
 object SchoolOwnerService {
 
