@@ -77,6 +77,17 @@ fun Route.riderRoutes() {
                 call.respond(mapOf("data" to  deliveries))
             }
 
+            patch("/deliveries/{orderId}/status") {
+                val riderId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+                    ?: return@patch call.respondError(HttpStatusCode.Unauthorized, "Unauthorized")
+                val orderId = call.parameters["orderId"]
+                    ?: return@patch call.respondError(HttpStatusCode.BadRequest, "Order ID required")
+                val request = call.receive<DeliveryStatusUpdate>()
+                val success = RiderService.updateDeliveryStatus(UUID.fromString(riderId), UUID.fromString(orderId), request)
+                if (success) call.respond(mapOf("message" to "Status updated"))
+                else call.respondError(HttpStatusCode.BadRequest, "Could not update status")
+            }
+
             // Reject delivery request
             post("/deliveries/{orderId}/reject") {
                 val riderId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()

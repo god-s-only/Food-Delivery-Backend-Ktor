@@ -1,1 +1,1 @@
-rootProject.name = "foodapp"
+rootProject.name = "veritasdrive"

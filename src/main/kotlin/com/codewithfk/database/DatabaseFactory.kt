@@ -154,12 +154,9 @@ fun Application.seedDatabase() {
                 data class SchoolSeed(val name: String, val address: String, val lat: Double, val lon: Double, val imageUrl: String, val ownerId: UUID)
 
                 val schools = listOf(
-                    SchoolSeed("Sunrise Academy", "12 School Rd, Yaba, Lagos", 6.5143, 3.3751, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner1Id),
+                    SchoolSeed("Veritas University", "Bwari Abuja", 6.5143, 3.3751, "https://res.cloudinary.com/db6ejiurn/image/upload/v1776514299/veritasgate_vi7tmp.jpg", owner1Id),
                     SchoolSeed("Greenfield Secondary School", "45 Education Ave, Wuse, Abuja", 9.0579, 7.4951, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner2Id),
-                    SchoolSeed("City Polytechnic Ibadan", "78 Poly Close, Ibadan", 7.3775, 3.9470, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner1Id),
-                    SchoolSeed("Crown University Enugu", "1 Crown Gate, GRA, Enugu", 6.4584, 7.5464, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner2Id),
-                    SchoolSeed("Heritage Vocational Kano", "33 Skills Lane, Kano", 12.0022, 8.5920, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner1Id),
-                    SchoolSeed("Bright Future College Port Harcourt", "20 Future Rd, Port Harcourt", 4.8156, 7.0498, "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/SNice.svg/640px-SNice.svg.png", owner2Id)
+
                 )
 
                 val schoolIds = mutableMapOf<String, UUID>()
@@ -194,28 +191,28 @@ fun Application.seedDatabase() {
 
                     val kekeList = listOf(
                         KekeSeed(
-                            schoolName = "Sunrise Academy",
+                            schoolName = "Veritas University",
                             name = "Keke Marwa — Emeka Okafor",
                             driverName = "Emeka Okafor",
                             description = "Blue Keke Marwa | Plate: LG-234-KE | Seats 3 | 5 years experience",
-                            price = 500.0,
-                            imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg"
+                            price = 2.0,
+                            imageUrl = "https://res.cloudinary.com/db6ejiurn/image/upload/v1776513934/kekepicture_p0l02q.jpg"
                         ),
                         KekeSeed(
-                            schoolName = "Sunrise Academy",
+                            schoolName = "Veritas University",
                             name = "Keke Napep — Chukwudi Eze",
                             driverName = "Chukwudi Eze",
                             description = "Yellow Keke Napep | Plate: LG-891-KN | Seats 3 | Punctual & safe",
-                            price = 550.0,
-                            imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Keke_napep_abuja.jpg/640px-Keke_napep_abuja.jpg"
+                            price = 2.5,
+                            imageUrl = "https://res.cloudinary.com/db6ejiurn/image/upload/v1776513934/kekepicture_p0l02q.jpg"
                         ),
                         KekeSeed(
-                            schoolName = "Sunrise Academy",
+                            schoolName = "Veritas University",
                             name = "Keke Marwa — Tunde Adeyemi",
                             driverName = "Tunde Adeyemi",
                             description = "Red Keke Marwa | Plate: LG-445-KM | Seats 3 | Reliable morning rider",
-                            price = 500.0,
-                            imageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Keke_NAPEP_in_Lagos.jpg/640px-Keke_NAPEP_in_Lagos.jpg"
+                            price = 2.0,
+                            imageUrl = "https://res.cloudinary.com/db6ejiurn/image/upload/v1776513934/kekepicture_p0l02q.jpg"
                         ),
                         KekeSeed(
                             schoolName = "Greenfield Secondary School",

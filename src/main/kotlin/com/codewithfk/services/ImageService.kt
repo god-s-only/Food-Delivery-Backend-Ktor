@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 
 object ImageService {
     private val client = HttpClient(CIO)
-    private const val STORAGE_URL = "${SupabaseConfig.SUPABASE_URL}/storage/v1/object"
+    private const val STORAGE_URL = "${SupabaseConfig.SUPABASE_URL}"
     private const val TARGET_SIZE_KB = 100
     private const val MAX_DIMENSION = 1024
 
